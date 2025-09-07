@@ -1,6 +1,8 @@
 import { ThemeProvider as EmotionThemeProvider } from "@emotion/react";
 import { DataObjectRounded, DeleteForeverRounded } from "@mui/icons-material";
 import { ThemeProvider as MuiThemeProvider, type Theme } from "@mui/material";
+import { LocalizationProvider } from "@mui/x-date-pickers";
+import { AdapterDayjs } from "@mui/x-date-pickers/AdapterDayjs";
 import { useCallback, useContext, useEffect } from "react";
 import ErrorBoundary from "./components/ErrorBoundary";
 import MainLayout from "./layouts/MainLayout";
@@ -19,8 +21,7 @@ function App() {
   const { user, setUser } = useContext(UserContext);
   const systemTheme = useSystemTheme();
 
-  // Initialize user properties if they are undefined
-  // this allows to add new properties to the user object without error
+  // 🔹 Ensure new properties are added to the user object
   useEffect(() => {
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const updateNestedProperties = (userObject: any, defaultObject: any): any => {
@@ -85,6 +86,7 @@ function App() {
     });
   }, [setUser]);
 
+  // 🔹 App badge logic
   useEffect(() => {
     const setBadge = async (count: number) => {
       if ("setAppBadge" in navigator) {
@@ -124,6 +126,7 @@ function App() {
     }
   }, [user.settings.appBadge, user.tasks]);
 
+  // 🔹 Theme logic
   const getMuiTheme = useCallback((): Theme => {
     if (systemTheme === "unknown") {
       return Themes[0].MuiTheme;
@@ -161,15 +164,18 @@ function App() {
           reduceMotion: user.settings.reduceMotion || "system",
         }}
       >
-        <GlobalStyles />
-        <CustomToaster />
-        <ErrorBoundary>
-          <MainLayout>
-            <GlobalQuickSaveHandler>
-              <AppRouter />
-            </GlobalQuickSaveHandler>
-          </MainLayout>
-        </ErrorBoundary>
+        {/* ✅ FIX: Add LocalizationProvider here */}
+        <LocalizationProvider dateAdapter={AdapterDayjs}>
+          <GlobalStyles />
+          <CustomToaster />
+          <ErrorBoundary>
+            <MainLayout>
+              <GlobalQuickSaveHandler>
+                <AppRouter />
+              </GlobalQuickSaveHandler>
+            </MainLayout>
+          </ErrorBoundary>
+        </LocalizationProvider>
       </EmotionThemeProvider>
     </MuiThemeProvider>
   );

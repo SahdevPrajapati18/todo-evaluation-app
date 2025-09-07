@@ -1,206 +1,198 @@
-import { useParams } from "react-router-dom";
-import { CategoryBadge, TopBar } from "../components";
-import styled from "@emotion/styled";
-import { PathName } from "../styles";
-import NotFound from "./NotFound";
-import { Clear, Done } from "@mui/icons-material";
-import { Emoji } from "emoji-picker-react";
-import { useContext, useEffect } from "react";
-import { UserContext } from "../contexts/UserContext";
-import { getColorName } from "ntc-ts";
+import React from "react";
+import { 
+  Dialog, 
+  DialogTitle, 
+  DialogContent, 
+  Chip,
+  Typography,
+  Box,
+  IconButton
+} from "@mui/material";
+import { Close as CloseIcon, CalendarToday, Flag, Description, DateRange } from "@mui/icons-material";
+import { Task } from "../types/user";
 
-const TaskDetails = () => {
-  const { user } = useContext(UserContext);
-  const { tasks, emojisStyle } = user;
-  const { id } = useParams();
-  const formattedId = id?.replace(".", "");
-  const task = tasks.find((task) => task.id.toString().replace(".", "") === formattedId);
+type TaskDetailsProps = {
+  open: boolean;
+  onClose: () => void;
+  task: Task | null;
+};
 
-  useEffect(() => {
-    document.title = `Todo App - ${task?.name || "Task Details"}`;
-  }, [task?.name]);
+// FIXED: Better priority colors and emojis
+const PRIORITY_CONFIG: Record<string, { color: string; emoji: string; textColor: string }> = {
+  Critical: { color: "#f44336", emoji: "🔴", textColor: "#fff" },
+  High: { color: "#ff9800", emoji: "🟡", textColor: "#000" },
+  Medium: { color: "#9c27b0", emoji: "🟣", textColor: "#fff" },
+  Low: { color: "#4caf50", emoji: "🟢", textColor: "#fff" },
+};
 
-  if (!task) {
-    return (
-      <NotFound
-        message={
-          <div>
-            Task with id <PathName>{formattedId}</PathName> was not found.
-          </div>
-        }
-      />
-    );
-  }
+const TaskDetails: React.FC<TaskDetailsProps> = ({ open, onClose, task }) => {
+  if (!task) return null;
 
-  const dateFormatter = new Intl.DateTimeFormat(navigator.language, {
-    dateStyle: "full",
-    timeStyle: "short",
-  });
+  // FIXED: Better date formatting
+  const formatDate = (date: Date) => {
+    const now = new Date();
+    const taskDate = new Date(date);
+    const diffTime = taskDate.getTime() - now.getTime();
+    const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+    
+    const formattedDate = taskDate.toLocaleDateString('en-US', {
+      weekday: 'long',
+      year: 'numeric',
+      month: 'long',
+      day: 'numeric'
+    });
+
+    if (diffDays === 0) {
+      return `${formattedDate} (Today)`;
+    } else if (diffDays === 1) {
+      return `${formattedDate} (Tomorrow)`;
+    } else if (diffDays === -1) {
+      return `${formattedDate} (Yesterday)`;
+    } else if (diffDays > 0) {
+      return `${formattedDate} (in ${diffDays} days)`;
+    } else {
+      return `${formattedDate} (${Math.abs(diffDays)} days ago)`;
+    }
+  };
+
+  // FIXED: Check if task is overdue
+  const isOverdue = task.deadline && !task.done && new Date(task.deadline) < new Date();
+
+  const priorityConfig = PRIORITY_CONFIG[task.priority || "Medium"];
 
   return (
-    <>
-      <TopBar title="Task Details" />
-      <Container>
-        <TaskName>
-          Task: <span translate="no">{task.name}</span>
-        </TaskName>
-        <TaskTable>
-          <tbody>
-            <TableRow>
-              <TableHeader>Emoji:</TableHeader>
-              <TableData>
-                {task.emoji ? (
-                  <>
-                    <Emoji unified={task?.emoji || ""} size={32} emojiStyle={emojisStyle} /> (
-                    {task.emoji})
-                  </>
-                ) : (
-                  <i>none</i>
+    <Dialog 
+      open={open} 
+      onClose={onClose} 
+      fullWidth 
+      maxWidth="sm"
+      PaperProps={{
+        sx: { borderRadius: 2 }
+      }}
+    >
+      <DialogTitle sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', pb: 1 }}>
+        <Typography variant="h6" component="div" sx={{ flex: 1, mr: 2 }}>
+          {task.name}
+        </Typography>
+        <IconButton onClick={onClose} size="small">
+          <CloseIcon />
+        </IconButton>
+      </DialogTitle>
+      
+      <DialogContent>
+        <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
+          
+          {/* Priority Section */}
+          <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+            <Flag color="action" />
+            <Typography variant="body2" color="text.secondary">Priority:</Typography>
+            <Chip
+              label={`${priorityConfig.emoji} ${task.priority || "Medium"}`}
+              size="small"
+              sx={{
+                backgroundColor: priorityConfig.color,
+                color: priorityConfig.textColor,
+                fontWeight: 'bold'
+              }}
+            />
+          </Box>
+
+          {/* Status Section */}
+          <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+            <Typography variant="body2" color="text.secondary">Status:</Typography>
+            <Chip
+              label={task.done ? "✅ Completed" : "⏳ Pending"}
+              size="small"
+              color={task.done ? "success" : "default"}
+              variant={task.done ? "filled" : "outlined"}
+            />
+          </Box>
+
+          {/* Creation Date */}
+          <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+            <DateRange color="action" />
+            <Typography variant="body2" color="text.secondary">Created:</Typography>
+            <Typography variant="body2">
+              {formatDate(task.date)}
+            </Typography>
+          </Box>
+
+          {/* Deadline Section */}
+          {task.deadline && (
+            <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+              <CalendarToday color="action" />
+              <Typography variant="body2" color="text.secondary">Deadline:</Typography>
+              <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                <Typography 
+                  variant="body2"
+                  color={isOverdue ? "error.main" : "text.primary"}
+                >
+                  {formatDate(task.deadline)}
+                </Typography>
+                {isOverdue && (
+                  <Chip 
+                    label="⚠️ Overdue" 
+                    size="small" 
+                    color="error" 
+                    variant="outlined"
+                  />
                 )}
-              </TableData>
-            </TableRow>
-            <TableRow>
-              <TableHeader>ID:</TableHeader>
-              <TableData>{task?.id}</TableData>
-            </TableRow>
-            <TableRow>
-              <TableHeader>Description:</TableHeader>
-              <TableData translate="no">{task?.description}</TableData>
-            </TableRow>
-            <TableRow>
-              <TableHeader>Color:</TableHeader>
-              <TableData>
-                <ColorSquare clr={task.color} />
-                {getColorName(task.color).name} ({task.color.toUpperCase()})
-              </TableData>
-            </TableRow>
-            <TableRow>
-              <TableHeader>Created:</TableHeader>
-              <TableData>{dateFormatter.format(new Date(task.date))}</TableData>
-            </TableRow>
-            {task?.lastSave && (
-              <TableRow>
-                <TableHeader>Last edited:</TableHeader>
-                <TableData>{dateFormatter.format(new Date(task.lastSave))}</TableData>
-              </TableRow>
-            )}
-            {task?.deadline && (
-              <TableRow>
-                <TableHeader>Task deadline:</TableHeader>
-                <TableData>{dateFormatter.format(new Date(task.deadline))}</TableData>
-              </TableRow>
-            )}
-            <TableRow>
-              <TableHeader>Done:</TableHeader>
-              <TableData>
-                {task?.done ? <Done /> : <Clear />} {task?.done.toString()}
-              </TableData>
-            </TableRow>
-            <TableRow>
-              <TableHeader>Pinned:</TableHeader>
-              <TableData>
-                {task?.pinned ? <Done /> : <Clear />} {task?.pinned.toString()}
-              </TableData>
-            </TableRow>
-            {task?.sharedBy && (
-              <TableRow>
-                <TableHeader>Shared by: </TableHeader>
-                <TableData>{task.sharedBy}</TableData>
-              </TableRow>
-            )}
-            {task.category && task.category.length > 0 && (
-              <TableRow>
-                <TableHeader>Categories:</TableHeader>
-                <TableData>
-                  <CategoryContainer>
-                    {task?.category?.map((category) => (
-                      <CategoryBadge key={category.id} category={category} glow={false} />
-                    ))}
-                  </CategoryContainer>
-                </TableData>
-              </TableRow>
-            )}
-          </tbody>
-        </TaskTable>
-      </Container>
-    </>
+              </Box>
+            </Box>
+          )}
+
+          {/* Description Section */}
+          {task.description && (
+            <Box sx={{ display: 'flex', alignItems: 'flex-start', gap: 1 }}>
+              <Description color="action" sx={{ mt: 0.5 }} />
+              <Box>
+                <Typography variant="body2" color="text.secondary" gutterBottom>
+                  Description:
+                </Typography>
+                <Typography 
+                  variant="body2" 
+                  sx={{ 
+                    whiteSpace: 'pre-wrap',
+                    backgroundColor: 'grey.50',
+                    p: 1.5,
+                    borderRadius: 1,
+                    border: '1px solid',
+                    borderColor: 'grey.200'
+                  }}
+                >
+                  {task.description}
+                </Typography>
+              </Box>
+            </Box>
+          )}
+
+          {/* Additional Info */}
+          {task.pinned && (
+            <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+              <Typography variant="body2" color="text.secondary">Pinned:</Typography>
+              <Chip label="📌 Yes" size="small" color="primary" variant="outlined" />
+            </Box>
+          )}
+
+          {/* Categories (if implemented) */}
+          {task.category && task.category.length > 0 && (
+            <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, flexWrap: 'wrap' }}>
+              <Typography variant="body2" color="text.secondary">Categories:</Typography>
+              {task.category.map((cat, index) => (
+                <Chip 
+                  key={cat.id || index} 
+                  label={`${cat.emoji || ''} ${cat.name}`} 
+                  size="small" 
+                  variant="outlined"
+                  sx={{ backgroundColor: cat.color + '20', borderColor: cat.color }}
+                />
+              ))}
+            </Box>
+          )}
+        </Box>
+      </DialogContent>
+    </Dialog>
   );
 };
 
 export default TaskDetails;
-
-const Container = styled.div`
-  display: flex;
-  flex-direction: column;
-  padding: 16px;
-  border-radius: 32px;
-  margin: 0 auto;
-  margin-top: 100px;
-  box-shadow: 0 0px 24px 2px rgba(0, 0, 0, 0.3);
-
-  @media (min-width: 768px) {
-    padding: 24px;
-    width: 70%;
-  }
-`;
-
-const TaskName = styled.h2`
-  margin: 8px;
-  text-align: center;
-  font-size: 1.5em;
-
-  @media (min-width: 768px) {
-    font-size: 1.8em;
-  }
-`;
-
-const TaskTable = styled.table`
-  width: 100%;
-  border-collapse: collapse;
-  margin-top: 16px;
-`;
-
-const TableRow = styled.tr`
-  border-bottom: 2px solid ${({ theme }) => theme.primary}41;
-
-  &:last-child {
-    border-bottom: none;
-  }
-`;
-
-const TableHeader = styled.th`
-  text-align: left;
-  padding: 8px;
-  font-size: 1em;
-
-  @media (min-width: 768px) {
-    font-size: 1.2em;
-  }
-`;
-
-const TableData = styled.td`
-  text-align: left;
-  padding: 8px;
-  display: flex;
-  align-items: center;
-  gap: 6px;
-  font-size: 1em;
-  word-break: break-all;
-  @media (min-width: 768px) {
-    font-size: 1.1em;
-  }
-`;
-
-const ColorSquare = styled.div<{ clr: string }>`
-  width: 20px;
-  height: 20px;
-  border-radius: 6px;
-  background-color: ${({ clr }) => clr};
-`;
-
-const CategoryContainer = styled.div`
-  display: flex;
-  align-items: center;
-  flex-wrap: wrap;
-  gap: 6px;
-`;

@@ -9,10 +9,8 @@ import {
   Typography,
 } from "@mui/material";
 import { DatePicker } from "@mui/x-date-pickers/DatePicker";
-import dayjs from "dayjs";
+import dayjs, { Dayjs } from "dayjs";
 import isBetween from "dayjs/plugin/isBetween";
-import { LocalizationProvider } from "@mui/x-date-pickers/LocalizationProvider";
-import { AdapterDayjs } from "@mui/x-date-pickers/AdapterDayjs";
 
 import {
   AddButton,
@@ -36,7 +34,7 @@ import { useNavigate } from "react-router-dom";
 import { AnimatedGreeting } from "../components/AnimatedGreeting";
 import { showToast } from "../utils";
 
-// It's a good practice to extend dayjs with plugins you need
+// Extend dayjs
 dayjs.extend(isBetween);
 
 const TasksList = lazy(() =>
@@ -46,9 +44,10 @@ const TasksList = lazy(() =>
 const Home = () => {
   const { user, setUser } = useContext(UserContext);
   const { tasks, emojisStyle, settings, name } = user;
+
   const [filter, setFilter] = useState("All");
-  const [customStart, setCustomStart] = useState(null);
-  const [customEnd, setCustomEnd] = useState(null);
+  const [customStart, setCustomStart] = useState<Dayjs | null>(null);
+  const [customEnd, setCustomEnd] = useState<Dayjs | null>(null);
 
   const isOnline = useOnlineStatus();
   const n = useNavigate();
@@ -69,9 +68,7 @@ const Home = () => {
         );
       case "This Week":
         return tasks.filter((task) =>
-          task.deadline
-            ? dayjs(task.deadline).isBetween(today, endOfWeek, "day", "[]")
-            : false,
+          task.deadline ? dayjs(task.deadline).isBetween(today, endOfWeek, "day", "[]") : false,
         );
       case "Custom":
         if (customStart && customEnd) {
@@ -81,7 +78,7 @@ const Home = () => {
               : false,
           );
         }
-        return [];
+        return tasks;
       default:
         return tasks;
     }
@@ -91,14 +88,10 @@ const Home = () => {
     const completedCount = tasks.filter((task) => task.done).length;
     const completedPercentage = tasks.length > 0 ? (completedCount / tasks.length) * 100 : 0;
 
-    // Corrected to use dayjs for consistency
     const today = dayjs().startOf("day");
-    const dueTodayTasks = tasks.filter((task) => {
-      if (task.deadline) {
-        return dayjs(task.deadline).isSame(today, "day") && !task.done;
-      }
-      return false;
-    });
+    const dueTodayTasks = tasks.filter(
+      (task) => task.deadline && dayjs(task.deadline).isSame(today, "day") && !task.done,
+    );
 
     return {
       completedTasksCount: completedCount,
@@ -111,61 +104,79 @@ const Home = () => {
   const timeGreeting = useMemo(() => {
     const currentHour = new Date().getHours();
     if (currentHour >= 5 && currentHour < 12) return "Good morning";
-    if (currentHour >= 12 && currentHour < 18) return "Good afternoon";
-    return "Good evening";
+    if (currentHour >= 12 && currentHour < 17) return "Good afternoon";
+    if (currentHour >= 17 && currentHour < 21) return "Good evening";
+    return "Good night";
   }, []);
 
   const taskCompletionText = useMemo(() => {
     const percentage = taskStats.completedTaskPercentage;
-    if (percentage === 0) return "No tasks completed yet. Keep going!";
-    if (percentage === 100) return "Congratulations! All tasks completed!";
-    if (percentage >= 75) return "Almost there!";
-    if (percentage >= 50) return "You're halfway there! Keep it up!";
-    if (percentage >= 25) return "You're making good progress.";
-    return "You're just getting started.";
-  }, [taskStats.completedTaskPercentage]);
+    const totalTasks = tasks.length;
 
-  const updateShowProgressBar = (value) => {
+    if (totalTasks === 0) return "Add your first task to get started!";
+    if (percentage === 100) return "🎉 Amazing! All tasks completed!";
+    if (percentage >= 75) return "🚀 Almost there! Just a few more to go!";
+    if (percentage >= 50) return "💪 You're halfway there! Keep it up!";
+    if (percentage >= 25) return "👍 You're making good progress!";
+    return "🎯 You're just getting started. You've got this!";
+  }, [taskStats.completedTaskPercentage, tasks.length]);
+
+  const updateShowProgressBar = (value: boolean) => {
     setUser((prevUser) => ({
       ...prevUser,
       settings: { ...prevUser.settings, showProgressBar: value },
     }));
   };
 
+  const handleFilterChange = (event: React.MouseEvent<HTMLElement>, newFilter: string | null) => {
+    if (newFilter !== null) {
+      setFilter(newFilter);
+      if (newFilter !== "Custom") {
+        setCustomStart(null);
+        setCustomEnd(null);
+      }
+    }
+  };
+
+  const isValidCustomRange = customStart && customEnd && customStart.isBefore(customEnd);
+
   return (
     <>
-      {/* 🔹 Filter Section - Wrapped in LocalizationProvider for Date Pickers */}
-      <LocalizationProvider dateAdapter={AdapterDayjs}>
-        <Box display="flex" gap={2} mb={3} flexWrap="wrap">
-          <ToggleButtonGroup
-            value={filter}
-            exclusive
-            onChange={(e, val) => val && setFilter(val)}
-          >
-            <ToggleButton value="All">All Tasks</ToggleButton>
-            <ToggleButton value="Today">Today</ToggleButton>
-            <ToggleButton value="This Week">This Week</ToggleButton>
-            <ToggleButton value="Custom">Custom</ToggleButton>
-          </ToggleButtonGroup>
+      <Box sx={{ display: "flex", gap: 2, mb: 3, flexWrap: "wrap", alignItems: "center" }}>
+        <ToggleButtonGroup
+          value={filter}
+          exclusive
+          onChange={handleFilterChange}
+          size="small"
+        >
+          <ToggleButton value="All">All Tasks</ToggleButton>
+          <ToggleButton value="Today">Today</ToggleButton>
+          <ToggleButton value="This Week">This Week</ToggleButton>
+          <ToggleButton value="Custom">Custom</ToggleButton>
+        </ToggleButtonGroup>
 
-          {filter === "Custom" && (
-            <>
-              <DatePicker
-                label="Start Date"
-                value={customStart}
-                onChange={(newVal) => setCustomStart(newVal)}
-              />
-              <DatePicker
-                label="End Date"
-                value={customEnd}
-                onChange={(newVal) => setCustomEnd(newVal)}
-              />
-            </>
-          )}
-        </Box>
-      </LocalizationProvider>
+        {filter === "Custom" && (
+          <>
+            <DatePicker
+              label="Start Date"
+              value={customStart}
+              onChange={(newVal: Dayjs | null) => setCustomStart(newVal)}
+            />
+            <DatePicker
+              label="End Date"
+              value={customEnd}
+              onChange={(newVal: Dayjs | null) => setCustomEnd(newVal)}
+              minDate={customStart || undefined}
+            />
+            {customStart && customEnd && !isValidCustomRange && (
+              <Typography variant="caption" color="error">
+                End date must be after start date
+              </Typography>
+            )}
+          </>
+        )}
+      </Box>
 
-      {/* Greeting */}
       <GreetingHeader>
         <Emoji unified="1f44b" emojiStyle={emojisStyle} /> &nbsp; {timeGreeting}
         {name && (
@@ -177,14 +188,12 @@ const Home = () => {
 
       <AnimatedGreeting />
 
-      {/* Offline Notice */}
       {!isOnline && (
         <Offline>
           <WifiOff /> You're offline but you can use the app!
         </Offline>
       )}
 
-      {/* Progress Bar */}
       {tasks.length > 0 && settings.showProgressBar && (
         <TasksCountContainer>
           <TasksCount glow={settings.enableGlow}>
@@ -241,33 +250,44 @@ const Home = () => {
               </TaskCountHeader>
               <TaskCompletionText>{taskCompletionText}</TaskCompletionText>
               {taskStats.tasksWithDeadlineTodayCount > 0 && (
-                <span style={{ opacity: 0.8, display: "inline-block" }}>
-                  <TodayRounded sx={{ fontSize: "20px", verticalAlign: "middle" }} />
-                  &nbsp;Tasks due today:&nbsp;
-                  <span translate="no">
-                    {new Intl.ListFormat("en", { style: "long" }).format(
-                      taskStats.tasksDueTodayNames,
-                    )}
-                  </span>
-                </span>
+                <Box sx={{ opacity: 0.8, display: "flex", alignItems: "center", gap: 0.5, mt: 1 }}>
+                  <TodayRounded sx={{ fontSize: "20px" }} />
+                  <Typography variant="body2">
+                    Tasks due today: {" "}
+                    <span translate="no">
+                      {new Intl.ListFormat("en", { style: "long", type: "conjunction" }).format(
+                        taskStats.tasksDueTodayNames,
+                      )}
+                    </span>
+                  </Typography>
+                </Box>
               )}
             </TaskCountTextContainer>
           </TasksCount>
         </TasksCountContainer>
       )}
 
-      {/* Tasks List */}
       <Suspense
         fallback={
-          <Box display="flex" justifyContent="center" alignItems="center" py={4}>
+          <Box sx={{ display: "flex", justifyContent: "center", alignItems: "center", py: 4 }}>
             <CircularProgress />
           </Box>
         }
       >
-        <TasksList tasks={filteredTasks} />
+        {filteredTasks.length === 0 && tasks.length > 0 ? (
+          <Box sx={{ textAlign: "center", py: 4 }}>
+            <Typography variant="h6" color="text.secondary">
+              No tasks found for {filter === "Custom" ? "selected date range" : filter.toLowerCase()}
+            </Typography>
+            <Button variant="outlined" onClick={() => setFilter("All")} sx={{ mt: 2 }}>
+              View All Tasks
+            </Button>
+          </Box>
+        ) : (
+          <TasksList tasks={filteredTasks} />
+        )}
       </Suspense>
 
-      {/* Add Button */}
       {!isMobile && (
         <Tooltip title={tasks.length > 0 ? "Add New Task" : "Add Task"} placement="left">
           <AddButton
