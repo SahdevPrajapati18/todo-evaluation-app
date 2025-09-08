@@ -4,6 +4,40 @@
 
 # 📝React.js Todo App
 
+## 🔍 Component Analysis & Evolution
+
+This section summarizes how components evolved from **v1** (initial build) to **v2** (refined version).  
+We use a **consistent table structure** for clarity and maintainability.
+
+| Component         | v1 (Initial)                              | v2 (Refined)                                    |
+|-------------------|------------------------------------------|-------------------------------------------------|
+| **Home**          | Basic task list rendering                | Lifted state up, added search, filter, and stats|
+| **TaskDetails**   | Inline rendering, minimal context        | Modal with context preservation & motivational copy |
+| **TaskForm**      | Simple uncontrolled form                 | Controlled inputs, validation, better UX       |
+| **TaskList**      | Static list rendering                    | Dynamic list with sorting & priority tagging   |
+| **DatePicker**    | Not implemented                          | Integrated `@mui/x-date-pickers` with `dayjs`  |
+
+---
+
+### 🎯 Key Refactoring Goals
+- ♻️ **DRY Principle:** Reused table format & UI elements, reduced redundant code.  
+- 🎨 **Consistency:** Unified styling across components for seamless UX.  
+- 🧩 **Reusability:** Created modular UI components for tasks, forms, and filters.  
+- 🔍 **Scalability:** Easy to extend with more features like categories and reminders.
+
+---
+
+### 🏗️ Design Philosophy
+> _Focus on minimalism, accessibility, and developer experience._
+
+- **State Management:** Context API with React Hooks.  
+- **Component Reuse:** Task card, modal, and list follow consistent structure.  
+- **Code Splitting:** Lazy loading for better performance.  
+
+---
+
+
+
 <p align="center"><i>A fast and modern Todo app built with React, featuring task sharing via link, P2P Task Sync with WebRTC, theme customization, offline usage as a PWA, and caching for smooth performance.</i></p>
 
 <img src="https://raw.githubusercontent.com/maciekt07/TodoApp/main/screenshots/baner.png" />
